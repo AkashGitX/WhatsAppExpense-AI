@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="sidebar" id="sidebar">
+  <!-- Brand -->
+  <div class="sidebar-brand">
+    <a href="/" style="text-decoration:none;display:flex;align-items:center;">
+      <span class="brand-icon">💰</span>
+      <div>
+        <span class="brand-name">BudgetBot AI</span>
+        <small class="brand-sub">Smart Expense Tracker</small>
+      </div>
+    </a>
+  </div>
+
+  <!-- Navigation -->
+  <ul class="sidebar-nav">
+    <li class="nav-label">Main</li>
+    <li>
+      <a href="/dashboard">
+        <i class="bi bi-grid-1x2-fill nav-icon"></i>
+        <span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a href="/expenses/new">
+        <i class="bi bi-plus-circle-fill nav-icon"></i>
+        <span>Add Expense</span>
+      </a>
+    </li>
+
+    <li class="nav-label">Analytics</li>
+    <li>
+      <a href="/history">
+        <i class="bi bi-clock-history nav-icon"></i>
+        <span>History</span>
+      </a>
+    </li>
+    <li>
+      <a href="/chat">
+        <i class="bi bi-chat-dots-fill nav-icon"></i>
+        <span>AI Chat</span>
+      </a>
+    </li>
+
+    <li class="nav-label">Account</li>
+    <li>
+      <a href="/settings">
+        <i class="bi bi-gear-fill nav-icon"></i>
+        <span>Settings</span>
+      </a>
+    </li>
+    <li>
+      <a href="#" id="logout-btn">
+        <i class="bi bi-box-arrow-right nav-icon"></i>
+        <span>Logout</span>
+      </a>
+    </li>
+  </ul>
+
+  <!-- Footer: User Info -->
+  <div class="sidebar-footer">
+    <div class="d-flex align-items-center gap-2">
+      <div style="position:relative;flex-shrink:0;">
+        <span class="user-avatar" id="sidebar-user-avatar">U</span>
+        <img id="sidebar-user-img"
+             src="" alt="Profile"
+             style="display:none;width:36px;height:36px;border-radius:50%;object-fit:cover;box-shadow:0 1px 4px rgba(0,0,0,.18);"/>
+      </div>
+      <div style="min-width:0;">
+        <div class="user-name text-truncate" id="sidebar-user-name">Loading…</div>
+        <small class="user-info text-truncate d-block" id="sidebar-user-email"></small>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings – BudgetBot AI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <style>
+    .profile-img-wrapper {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .profile-img-wrapper .user-avatar {
+      width: 100px !important;
+      height: 100px !important;
+      font-size: 2.2rem !important;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .profile-img-wrapper img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: none;
+    }
+    .profile-img-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.50);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity .2s;
+      gap: 2px;
+    }
+    .profile-img-overlay i { font-size: 1.2rem; }
+    .profile-img-wrapper:hover .profile-img-overlay { opacity: 1; }
+    .profile-img-spinner {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <div th:replace="~{fragments/nav :: sidebar}"></div>
+
+  <div id="content">
+    <div class="page-header">
+      <h1>Settings</h1>
+      <p>Manage your account details and preferences.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- Profile card -->
+      <div class="col-lg-6">
+        <div class="card p-4">
+          <h6 class="fw-700 mb-3"><i class="bi bi-person-fill me-2 text-primary"></i>Profile Information</h6>
+
+          <div class="text-center mb-4">
+            <!-- Clickable profile image wrapper -->
+            <div class="profile-img-wrapper mx-auto mb-2"
+                 id="profile-img-wrapper"
+                 title="Click to change photo"
+                 onclick="document.getElementById('profile-file-input').click()">
+              <!-- Default avatar (letter) — shown when no image -->
+              <div class="user-avatar" id="avatar-circle">U</div>
+              <!-- Profile image — shown when image exists -->
+              <img id="profile-img" src="" alt="Profile photo"/>
+              <!-- Hover overlay -->
+              <div class="profile-img-overlay">
+                <i class="bi bi-camera-fill"></i>
+                <span>Change</span>
+              </div>
+              <!-- Upload spinner -->
+              <div class="profile-img-spinner" id="profile-img-spinner">
+                <div class="spinner-border spinner-border-sm text-light"></div>
+              </div>
+            </div>
+            <!-- Hidden file input -->
+            <input type="file" id="profile-file-input"
+                   accept="image/jpeg,image/png,image/gif,image/webp"
+                   style="display:none;"/>
+            <div class="text-muted" style="font-size:.72rem;margin-top:4px;">
+              Click photo to change &nbsp;·&nbsp; JPG/PNG/GIF/WEBP, max 2 MB
+            </div>
+
+            <div class="fw-600 mt-2" id="profile-name-display">Loading…</div>
+            <div class="text-muted small" id="profile-email-display"></div>
+          </div>
+
+          <form id="profile-form" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="setting-name" class="form-control" placeholder="Your name"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">WhatsApp / Phone Number</label>
+              <input type="tel" id="setting-phone" class="form-control" placeholder="+919876543210"/>
+              <div class="form-text">Must be in E.164 format: +91XXXXXXXXXX</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="setting-email" class="form-control" disabled/>
+              <div class="form-text">Email cannot be changed.</div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="profile-save-btn">
+              <i class="bi bi-check-lg me-2"></i>Save Changes
+            </button>
+          </form>
+
+          <div id="profile-ok"  class="alert alert-success mt-3 d-none small py-2"></div>
+          <div id="profile-err" class="alert alert-danger  mt-3 d-none small py-2"></div>
+        </div>
+      </div>
+
+      <!-- Account Info -->
+      <div class="col-lg-6">
+        <div class="card p-4 mb-4">
+          <h6 class="fw-700 mb-3"><i class="bi bi-info-circle-fill me-2 text-success"></i>Account Details</h6>
+          <table class="table table-sm mb-0" style="font-size:.85rem;">
+            <tbody>
+              <tr><td class="text-muted">User ID</td><td id="info-userid" class="fw-600">–</td></tr>
+              <tr><td class="text-muted">Email</td>  <td id="info-email"  class="fw-600">–</td></tr>
+              <tr><td class="text-muted">WhatsApp</td><td id="info-phone" class="fw-600">–</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- WhatsApp setup card -->
+        <div class="card p-4" style="background:#f0f7ff;border:1px dashed #93c5fd!important;">
+          <h6 class="fw-700 mb-2"><i class="bi bi-whatsapp me-2 text-success"></i>WhatsApp Setup</h6>
+          <p class="small text-muted mb-3">To log expenses via WhatsApp:</p>
+          <ol class="small ps-3 mb-3" style="line-height:1.8;">
+            <li>Save our number in your contacts</li>
+            <li>Send <strong>"Spent 500 on food"</strong></li>
+            <li>AI extracts and saves it automatically</li>
+          </ol>
+          <div class="fw-700 text-center p-2"
+               style="background:rgba(67,97,238,.1);border-radius:8px;letter-spacing:1px;">
+            +1 (415) 523-8886
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/app.js}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = requireAuth();
+  if (!user) return;
+
+  // Fill info panel from cached localStorage data
+  document.getElementById('info-userid').textContent = user.userId;
+  document.getElementById('info-email').textContent  = user.email;
+  document.getElementById('info-phone').textContent  = user.phoneNumber || 'Not set';
+
+  // ── Helper: apply profile image ───────────────────────────────────────────
+  function applyProfileImage(url) {
+    const img    = document.getElementById('profile-img');
+    const circle = document.getElementById('avatar-circle');
+    if (url) {
+      img.src           = url;
+      img.style.display = 'block';
+      circle.style.display = 'none';
+    } else {
+      img.style.display    = 'none';
+      circle.style.display = 'flex';
+    }
+  }
+
+  // Apply cached image immediately (avoids flash of default avatar)
+  if (user.profileImageUrl) applyProfileImage(user.profileImageUrl);
+
+  // Fetch fresh profile from server
+  try {
+    const res = await api('/users/me');
+    if (res?.success && res.data) {
+      const p = res.data;
+      document.getElementById('setting-name').value  = p.name        || '';
+      document.getElementById('setting-phone').value = p.phoneNumber || '';
+      document.getElementById('setting-email').value = p.email       || '';
+      document.getElementById('profile-name-display').textContent  = p.name  || '';
+      document.getElementById('profile-email-display').textContent = p.email || '';
+      document.getElementById('avatar-circle').textContent = (p.name || 'U').charAt(0).toUpperCase();
+      applyProfileImage(p.profileImageUrl);
+    }
+  } catch {}
+
+  // ── Profile image upload ───────────────────────────────────────────────────
+  document.getElementById('profile-file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate size client-side (2 MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image must be under 2 MB.', 'danger');
+      e.target.value = '';
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => applyProfileImage(ev.target.result);
+    reader.readAsDataURL(file);
+
+    // Show spinner
+    const spinner = document.getElementById('profile-img-spinner');
+    spinner.style.display = 'flex';
+
+    // Upload
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const token = getToken();
+      const res = await fetch('/users/me/profile-image', {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body:    formData
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const imgUrl = data.data?.profileImageUrl;
+        applyProfileImage(imgUrl);
+        // Persist to localStorage
+        const updated = { ...user, profileImageUrl: imgUrl };
+        saveUser(updated);
+        showToast('Profile picture updated!', 'success');
+      } else {
+        showToast(data.message || 'Upload failed.', 'danger');
+        // Revert preview to whatever was there before
+        applyProfileImage(user.profileImageUrl || null);
+      }
+    } catch {
+      showToast('Upload failed. Please try again.', 'danger');
+      applyProfileImage(user.profileImageUrl || null);
+    } finally {
+      spinner.style.display = 'none';
+      e.target.value = '';
+    }
+  });
+
+  // ── Save profile (name / phone) ────────────────────────────────────────────
+  document.getElementById('profile-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const ok  = document.getElementById('profile-ok');
+    const err = document.getElementById('profile-err');
+    ok.classList.add('d-none');
+    err.classList.add('d-none');
+
+    const btn = document.getElementById('profile-save-btn');
+    btn.disabled = true;
+
+    const body = {
+      name:        document.getElementById('setting-name').value.trim()  || undefined,
+      phoneNumber: document.getElementById('setting-phone').value.trim() || undefined
+    };
+
+    try {
+      const res = await api('/users/me', { method: 'PATCH', body: JSON.stringify(body) });
+      if (!res) return;
+
+      if (res.success) {
+        const updated = { ...user,
+          name:        res.data?.name        || user.name,
+          phoneNumber: res.data?.phoneNumber || user.phoneNumber
+        };
+        saveUser(updated);
+        populateSidebarUser(updated);
+        document.getElementById('profile-name-display').textContent = updated.name;
+        document.getElementById('avatar-circle').textContent = updated.name.charAt(0).toUpperCase();
+        ok.textContent = 'Profile updated successfully.';
+        ok.classList.remove('d-none');
+        showToast('Profile updated!', 'success');
+      } else {
+        err.textContent = res.message || 'Update failed.';
+        err.classList.remove('d-none');
+      }
+    } catch {
+      err.textContent = 'Network error. Please try again.';
+      err.classList.remove('d-none');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+</script>
+</body>
+</html>

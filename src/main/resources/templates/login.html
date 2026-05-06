@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BudgetBot AI – Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-logo">💰</div>
+    <h4 class="text-center fw-700 mb-1">BudgetBot AI</h4>
+    <p class="text-center text-muted small mb-4">Smart expense tracking with AI &amp; WhatsApp</p>
+
+    <!-- Tabs -->
+    <ul class="nav nav-pills auth-tabs mb-4 p-1" style="background:#f0f2f9;border-radius:10px;">
+      <li class="nav-item flex-fill text-center">
+        <a class="nav-link active" id="tab-login" href="#" onclick="switchTab('login')">Login</a>
+      </li>
+      <li class="nav-item flex-fill text-center">
+        <a class="nav-link" id="tab-register" href="#" onclick="switchTab('register')">Register</a>
+      </li>
+    </ul>
+
+    <!-- Login Form -->
+    <div id="form-login">
+      <div class="mb-3">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="login-email" class="form-control" placeholder="you@example.com"/>
+      </div>
+      <div class="mb-4 position-relative">
+        <label class="form-label">Password</label>
+        <input type="password" id="login-password" class="form-control" placeholder="••••••••"/>
+      </div>
+      <button class="btn btn-primary w-100" onclick="doLogin()">
+        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+      </button>
+      <div id="login-error" class="alert alert-danger mt-3 d-none small py-2"></div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="form-register" class="d-none">
+      <div class="mb-3">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="reg-name" class="form-control" placeholder="Priya Patel"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="reg-email" class="form-control" placeholder="you@example.com"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password <small class="text-muted">(min 6 chars)</small></label>
+        <input type="password" id="reg-password" class="form-control" placeholder="••••••••"/>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">WhatsApp Number <small class="text-muted">(optional)</small></label>
+        <input type="tel" id="reg-phone" class="form-control" placeholder="+919876543210"/>
+        <div class="form-text">Must be in international format: +91XXXXXXXXXX</div>
+      </div>
+      <button class="btn btn-primary w-100" onclick="doRegister()">
+        <i class="bi bi-person-plus-fill me-2"></i>Create Account
+      </button>
+      <div id="register-error"   class="alert alert-danger  mt-3 d-none small py-2"></div>
+      <div id="register-success" class="alert alert-success mt-3 d-none small py-2"></div>
+    </div>
+
+    <p class="text-center text-muted mt-3 small">
+      <a href="/" class="text-decoration-none">← Back to home</a>
+    </p>
+  </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+<script>
+  // Already logged in — go to dashboard
+  if (getUser() && getToken()) window.location.href = '/dashboard';
+
+  // Auto-switch to register tab if ?tab=register in URL
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'register') switchTab('register');
+  })();
+
+  function switchTab(tab) {
+    document.getElementById('form-login').classList.toggle('d-none', tab !== 'login');
+    document.getElementById('form-register').classList.toggle('d-none', tab !== 'register');
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  }
+
+  async function doLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    errEl.classList.add('d-none');
+
+    if (!email || !password) { showErr(errEl, 'Please enter email and password.'); return; }
+
+    try {
+      const data = await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!data) return; // network / parse error
+
+      if (data.success) {
+        // Store user profile AND JWT token
+        saveUser(data);
+        saveToken(data.token);
+        window.location.href = '/dashboard';
+      } else {
+        showErr(errEl, data.message || 'Login failed.');
+      }
+    } catch(e) {
+      showErr(errEl, 'Network error. Please try again.');
+    }
+  }
+
+  async function doRegister() {
+    const name     = document.getElementById('reg-name').value.trim();
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const phone    = document.getElementById('reg-phone').value.trim();
+    const errEl    = document.getElementById('register-error');
+    const okEl     = document.getElementById('register-success');
+    errEl.classList.add('d-none');
+    okEl.classList.add('d-none');
+
+    if (!name || !email || !password) {
+      showErr(errEl, 'Name, email and password are required.'); return;
+    }
+    if (password.length < 6) {
+      showErr(errEl, 'Password must be at least 6 characters.'); return;
+    }
+    if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) {
+      showErr(errEl, 'Phone must be in E.164 format, e.g. +919876543210'); return;
+    }
+
+    try {
+      const body = { name, email, password };
+      if (phone) body.phoneNumber = phone;
+
+      const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(body) });
+      if (!data) return;
+
+      if (data.success) {
+        okEl.textContent = 'Account created! Please log in.';
+        okEl.classList.remove('d-none');
+        setTimeout(() => switchTab('login'), 1400);
+      } else {
+        showErr(errEl, data.message || 'Registration failed.');
+      }
+    } catch(e) {
+      showErr(errEl, 'Network error. Please try again.');
+    }
+  }
+
+  function showErr(el, msg) {
+    el.textContent = msg;
+    el.classList.remove('d-none');
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const loginVisible = !document.getElementById('form-login').classList.contains('d-none');
+    if (loginVisible) doLogin(); else doRegister();
+  });
+</script>
+</body>
+</html>

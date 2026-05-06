@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Expense – BudgetBot AI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+<div class="wrapper">
+  <div th:replace="~{fragments/nav :: sidebar}"></div>
+
+  <div id="content">
+    <div class="page-header">
+      <h1>Add Expense</h1>
+      <p>Log a new expense manually to your account.</p>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-7 col-xl-6">
+        <div class="card p-4">
+          <form id="expense-form" novalidate>
+
+            <!-- Amount -->
+            <div class="mb-3">
+              <label class="form-label">Amount <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text"
+                      style="border-radius:8px 0 0 8px;border:1.5px solid #e2e8f0;border-right:none;">₹</span>
+                <input type="number" id="amount" class="form-control"
+                       placeholder="0.00" min="0.01" step="0.01" required
+                       style="border-radius:0 8px 8px 0;"/>
+              </div>
+              <div class="invalid-feedback" id="amount-error"></div>
+            </div>
+
+            <!-- Category -->
+            <div class="mb-3">
+              <label class="form-label">Category <span class="text-danger">*</span></label>
+              <select id="category" class="form-select" required>
+                <option value="">Select a category</option>
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Shopping</option>
+                <option>Bills</option>
+                <option>Entertainment</option>
+                <option>Health</option>
+                <option>Education</option>
+                <option>Others</option>
+              </select>
+              <div class="invalid-feedback" id="category-error"></div>
+            </div>
+
+            <!-- Note -->
+            <div class="mb-3">
+              <label class="form-label">Note <span class="text-muted">(optional, max 500 chars)</span></label>
+              <input type="text" id="note" class="form-control"
+                     placeholder="e.g. Lunch at office, Metro card recharge…" maxlength="500"/>
+            </div>
+
+            <!-- Date -->
+            <div class="mb-4">
+              <label class="form-label">Date <span class="text-danger">*</span></label>
+              <input type="date" id="date" class="form-control" required/>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary flex-fill" id="submit-btn">
+                <i class="bi bi-plus-circle me-2"></i>Save Expense
+              </button>
+              <a href="/dashboard" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+
+          <div id="form-success" class="alert alert-success mt-3 d-none">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span id="success-msg">Expense saved!</span>
+            <a href="/dashboard" class="alert-link ms-2">Go to Dashboard</a>
+          </div>
+          <div id="form-error" class="alert alert-danger mt-3 d-none">
+            <i class="bi bi-x-circle-fill me-2"></i>
+            <span id="error-msg"></span>
+          </div>
+        </div>
+
+        <!-- WhatsApp tip -->
+        <div class="card mt-3 p-3" style="background:#f0f7ff;border:1px dashed #93c5fd!important;">
+          <div class="d-flex align-items-start gap-3">
+            <span style="font-size:1.4rem;">📱</span>
+            <div>
+              <div class="fw-600 small mb-1">Tip: Use WhatsApp for even faster logging!</div>
+              <div class="text-muted" style="font-size:.78rem;">
+                Send <em>"Spent 300 on lunch"</em> to our WhatsApp number and AI will log it automatically.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/app.js}"></script>
+<script>
+  // Redirect to login if not authenticated
+  if (!requireAuth()) { /* requireAuth() handles the redirect */ }
+
+  // Set today as default date
+  document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+  document.getElementById('expense-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const ok  = document.getElementById('form-success');
+    const err = document.getElementById('form-error');
+    ok.classList.add('d-none');
+    err.classList.add('d-none');
+
+    const amount   = parseFloat(document.getElementById('amount').value);
+    const category = document.getElementById('category').value;
+    const note     = document.getElementById('note').value.trim();
+    const date     = document.getElementById('date').value;
+
+    if (!amount || amount <= 0) { showFieldErr('amount-error',   'Amount must be greater than 0'); return; }
+    if (!category)              { showFieldErr('category-error', 'Please select a category');    return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+
+    try {
+      // JWT is attached automatically by api() via the Authorization header
+      const data = await api('/expenses', {
+        method: 'POST',
+        body:   JSON.stringify({ amount, category, note, date })
+      });
+
+      if (!data) return; // 401 handled by api()
+
+      if (data.success) {
+        ok.classList.remove('d-none');
+        document.getElementById('expense-form').reset();
+        document.getElementById('date').value = new Date().toISOString().split('T')[0];
+        showToast('Expense saved successfully!', 'success');
+      } else {
+        document.getElementById('error-msg').textContent = data.message || 'Failed to save.';
+        err.classList.remove('d-none');
+      }
+    } catch(ex) {
+      document.getElementById('error-msg').textContent = 'Network error. Please try again.';
+      err.classList.remove('d-none');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Save Expense';
+    }
+  });
+
+  function showFieldErr(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = ''; }, 3000);
+  }
+</script>
+</body>
+</html>
