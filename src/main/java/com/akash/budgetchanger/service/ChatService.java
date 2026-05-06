@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ChatService {
+    private static final int MAX_CONTEXT_TRANSACTIONS = 100;
+    private static final int MAX_CONTEXT_NOTE_LENGTH = 80;
 
     private final ChatHistoryRepository chatHistoryRepository;
     private final ExpenseRepository expenseRepository;
@@ -38,6 +40,8 @@ public class ChatService {
      */
     @Transactional
     public ChatMessageResponse askQuestion(Long userId, String question) {
+        log.info("AI request started — userId={}, question='{}'", userId, question);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -47,10 +51,19 @@ public class ChatService {
                 .findByUserIdAndDateGreaterThanEqualOrderByDateAsc(userId, since);
 
         String context = buildExpenseContext(user, expenses);
-        log.info("AI chat — userId={}, question='{}'", userId, question);
+        log.info("AI chat context prepared — userId={}, expenseCount={}", userId, expenses.size());
         log.debug("AI context:\n{}", context);
 
-        String answer = aiService.answerSpendingQuery(question, context);
+        String answer;
+        try {
+            log.info("AI provider request dispatch — userId={}", userId);
+            answer = aiService.answerSpendingQuery(question, context);
+            log.info("AI response received — userId={}, answerLength={}", userId, answer != null ? answer.length() : 0);
+        } catch (Exception ex) {
+            log.error("AI request failed in ChatService — userId={}, exceptionType={}, message={}",
+                    userId, ex.getClass().getName(), ex.getMessage(), ex);
+            throw ex;
+        }
 
         ChatHistory record = ChatHistory.builder()
                 .user(user)
@@ -107,7 +120,7 @@ public class ChatService {
         // This month's total
         BigDecimal monthlyTotal = expenses.stream()
                 .filter(e -> e.getDate().getMonth() == today.getMonth()
-                          && e.getDate().getYear() == today.getYear())
+                        && e.getDate().getYear() == today.getYear())
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -126,15 +139,32 @@ public class ChatService {
                 .forEach(e -> sb.append("  - ").append(e.getKey())
                         .append(": ").append(e.getValue()).append("\n"));
 
-        sb.append("\nDetailed Transactions:\n");
+        sb.append("\nDetailed Transactions (latest ")
+                .append(Math.min(expenses.size(), MAX_CONTEXT_TRANSACTIONS))
+                .append(" of ")
+                .append(expenses.size())
+                .append("):\n");
         expenses.stream()
                 .sorted((a, b) -> b.getDate().compareTo(a.getDate()))
+                .limit(MAX_CONTEXT_TRANSACTIONS)
                 .forEach(e -> sb.append("  [").append(e.getDate().format(fmt))
                         .append("] ").append(e.getCategory())
                         .append(" — ").append(e.getAmount())
-                        .append(e.getNote() != null ? " (\"" + e.getNote() + "\")" : "")
+                        .append(e.getNote() != null ? " (\"" + truncateForContext(e.getNote()) + "\")" : "")
                         .append(" [").append(e.getSource()).append("]\n"));
 
         return sb.toString();
     }
+
+    private String truncateForContext(String note) {
+        if (note == null) {
+            return "";
+        }
+        String normalized = note.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= MAX_CONTEXT_NOTE_LENGTH) {
+            return normalized;
+        }
+        return normalized.substring(0, MAX_CONTEXT_NOTE_LENGTH) + "...";
+    }
 }
+
